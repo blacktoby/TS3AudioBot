@@ -142,33 +142,40 @@ namespace TS3AudioBot.Environment
 
 		private async void TrackPoint()
 		{
-			var nextId = statsPoints.GenNextIndex();
-
-			var now = Tools.Now;
-			CurrentStatsData.Time = now;
-			CurrentStatsData.Id = nextId;
-			var trackTime = now - runtimeLastTrack;
-			runtimeLastTrack = now;
-			CurrentStatsData.TotalUptime += trackTime;
-			CurrentStatsData.RunningBots = botManager.GetRunningBotCount();
-			CurrentStatsData.BotsRuntime = TimeSpan.FromTicks(trackTime.Ticks * CurrentStatsData.RunningBots);
-			foreach (var factory in runningSongsPerFactory.Values)
-				CurrentStatsData.SongStats.GetOrNew(factory).Playtime += trackTime;
-
-			Log.Debug("Track: {@data}", CurrentStatsData);
-			trackEntries.Upsert(CurrentStatsData);
-			overallStats.Add(CurrentStatsData);
-			accEntries.Upsert(overallStats);
-			CurrentStatsData.Reset();
-
-			if (UploadEnabled && statsPoints.LastSend + SendInterval < now)
+			try
 			{
-				var sendData = GetStatsTill(statsPoints.LastSend);
-				await SendStats(sendData);
-				statsPoints.LastSend = now;
-			}
+				var nextId = statsPoints.GenNextIndex();
 
-			UpdateMeta();
+				var now = Tools.Now;
+				CurrentStatsData.Time = now;
+				CurrentStatsData.Id = nextId;
+				var trackTime = now - runtimeLastTrack;
+				runtimeLastTrack = now;
+				CurrentStatsData.TotalUptime += trackTime;
+				CurrentStatsData.RunningBots = botManager.GetRunningBotCount();
+				CurrentStatsData.BotsRuntime = TimeSpan.FromTicks(trackTime.Ticks * CurrentStatsData.RunningBots);
+				foreach (var factory in runningSongsPerFactory.Values)
+					CurrentStatsData.SongStats.GetOrNew(factory).Playtime += trackTime;
+
+				Log.Debug("Track: {@data}", CurrentStatsData);
+				trackEntries.Upsert(CurrentStatsData);
+				overallStats.Add(CurrentStatsData);
+				accEntries.Upsert(overallStats);
+				CurrentStatsData.Reset();
+
+				if (UploadEnabled && statsPoints.LastSend + SendInterval < now)
+				{
+					var sendData = GetStatsTill(statsPoints.LastSend);
+					await SendStats(sendData);
+					statsPoints.LastSend = now;
+				}
+
+				UpdateMeta();
+			}
+			catch (Exception e)
+			{
+				Log.Warn(e, "TrackPoint failed!");
+			}
 		}
 
 		// Track operations
